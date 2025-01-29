@@ -1,0 +1,71 @@
+{
+  "dataProductDescriptor": "1.0.0",
+  "info": {
+    "fullyQualifiedName": "${BD_fullyQualifiedName}",
+    "domain": "${BD_domain}",
+    "name": "${BD_name}",
+    "version": "${BD_version}",
+    "displayName": "${BD_displayName}",
+    "description": "${BD_description}",
+    "owner": {
+      "id": "${owner}",
+      "name": "${owner_name}"
+    },
+    "contactPoints": []
+  },
+  "interfaceComponents": {
+    "inputPorts": [
+      {
+        "fullyQualifiedName": "${BD_fullyQualifiedName}:${BD_version}:inputPorts:${input_port_name}",
+        "name": "${input_port_name}",
+        "version": "${input_port_version}",
+        "displayName": "${input_port_display_name}",
+        "description": "${input_port_description}",
+        "componentGroup": null,
+        "x-prop": null,
+        "dependsOn": "blindata:systems:airline_demo",
+        "slo": null,
+        "expectations": null,
+        "contracts": null,
+        "tags": []
+      }
+    ],
+    "outputPorts": []
+  },
+  "internalComponents": {
+    "lifecycleInfo": {
+      "${dev_stage_name}": [
+        {
+          "service": {
+            "$href": "dummy"
+          },
+          "template": {
+            "specification": "spec",
+            "specificationVersion": "2.0",
+            "definition": {}
+          },
+          "configurations": {
+            "params": {},
+            "stagesToSkip": []
+          }
+        }
+      ],
+      "${prod_stage_name}": [
+        {
+          "service": {
+            "$href": "dummy"
+          },
+          "template": {
+            "specification": "spec",
+            "specificationVersion": "2.0",
+            "definition": {}
+          },
+          "configurations": {
+            "params": {},
+            "stagesToSkip": []
+          }
+        }
+      ]
+    }
+  }
+}

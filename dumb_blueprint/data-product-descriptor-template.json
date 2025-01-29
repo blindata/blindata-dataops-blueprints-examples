@@ -1,0 +1,18 @@
+{
+  "dataProductDescriptor": "1.0.0",
+  "info": {
+    "fullyQualifiedName": "${BD_fullyQualifiedName}",
+    "name": "${BD_name}",
+    "displayName": "${BD_displayName}",
+    "description": "${BD_description}",
+    "version": "${BD_version}",
+    "domain": "${BD_domain}",
+    "owner": {
+      "id": "${owner}"
+    }
+  },
+
+  "interfaceComponents": {
+    "outputPorts": []
+  }
+}

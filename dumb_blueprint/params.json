@@ -1,0 +1,37 @@
+[
+  {
+    "name": "BD_domain",
+    "description": "The domain within which the data product exists.",
+    "defaultValue": ""
+  },
+  {
+    "name": "BD_displayName",
+    "description": "The name of the data product in human readable format.",
+    "defaultValue": ""
+  },
+  {
+    "name": "BD_name",
+    "description": "The name of the data product.",
+    "defaultValue": ""
+  },
+  {
+    "name": "BD_fullyQualifiedName",
+    "description": "Fully Qualified Name (FQN) that uniquely identifies the data product.",
+    "defaultValue": ""
+  },
+  {
+    "name": "BD_description",
+    "description": "A brief description of the data product.",
+    "defaultValue": ""
+  },
+  {
+    "name": "BD_version",
+    "description": "The version number of the data product.",
+    "defaultValue": "1.0.0"
+  },
+  {
+    "name": "owner",
+    "description": "The owner or responsible party for the data product.",
+    "defaultValue": "john.doe@company-xyz.com"
+  }
+]
