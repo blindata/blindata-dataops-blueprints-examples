@@ -68,5 +68,30 @@
     "name": "input_port_description",
     "description": "A brief description of the data product port.",
     "defaultValue": "inputPortDescription"
+  },
+  {
+    "name": "system_name",
+    "description": "The name of the system that the data product depends on.",
+    "defaultValue": "systemName"
+  },
+  {
+    "name": "output_port_name",
+    "description": "The name of the output port.",
+    "defaultValue": "outputPortName"
+  },
+  {
+    "name": "output_port_version",
+    "description": "The version number of the output port.",
+    "defaultValue": "1.0.0"
+  },
+  {
+    "name": "output_port_display_name",
+    "description": "The display name of the output port in human readable format.",
+    "defaultValue": "outputPortDisplayName"
+  },
+  {
+    "name": "output_port_description",
+    "description": "A brief description of the output port.",
+    "defaultValue": "outputPortDescription"
   }
 ]

@@ -23,14 +23,139 @@
         "description": "${input_port_description}",
         "componentGroup": null,
         "x-prop": null,
-        "dependsOn": "blindata:systems:airline_demo",
+        "dependsOn": "blindata:systems:${system_name}",
         "slo": null,
         "expectations": null,
         "contracts": null,
         "tags": []
       }
     ],
-    "outputPorts": []
+    "outputPorts": [
+      {
+        "fullyQualifiedName": "${BD_fullyQualifiedName}:${BD_version}:outputPorts:${output_port_name}",
+        "name": "${output_port_name}",
+        "version": "${output_port_version}",
+        "displayName": "${output_port_display_name}",
+        "description": "${output_port_description}",
+        "componentGroup": null,
+        "x-prop": null,
+        "promises": {
+          "platform": "AWS Redshift:Redshift - film-rental-sales",
+          "servicesType": "datastore-services",
+          "api": {
+            "specification": "datastoreapi",
+            "specificationVersion": "1.0.0",
+            "definition": {
+              "datastoreapi": "1.0.0",
+              "info": {
+                "title": "",
+                "summary": "",
+                "description": "",
+                "termsOfService": "https://example.com/terms/",
+                "version": "1.0.0",
+                "datastoreName": "",
+                "contact": {
+                  "name": "API Support",
+                  "url": "https://www.example.com/support",
+                  "email": "support@example.com"
+                },
+                "license": {
+                  "name": "Apache 2.0",
+                  "url": "https://www.apache.org/licenses/LICENSE-2.0.html"
+                }
+              },
+              "schema": {
+                "databaseName": "film_rental_sales",
+                "databaseSchemaName": "profit",
+                "tables": [
+                  {
+                    "name": "v_monthly_customer_payments",
+                    "version": "1.0.0",
+                    "description": "The view that store the information about monthly customer payments",
+                    "specification": "json-schema",
+                    "specificationVersion": "1",
+                    "definition": {
+                      "name": "entity",
+                      "version": "1.0.0",
+                      "fullyQualifiedName": "${BD_fullyQualifiedName}:${BD_version}:outputPorts:${output_port_name}:tables:film_rental_sales.profit.v_monthly_customer_payments",
+                      "displayName": "Monthly Customer Payments",
+                      "description": "The view that store the information about monthly customer payments",
+                      "physicalType": "VIEW",
+                      "type": "object",
+                      "properties": {
+                        "customer_id": {
+                          "type": "string",
+                          "name": "customer_id",
+                          "description": "",
+                          "kind": "ATTRIBUTE",
+                          "required": true,
+                          "displayName": "Customer ID",
+                          "default": null,
+                          "isUnique": true,
+                          "isNullable": true,
+                          "length": 10,
+                          "physicalType": "VARCHAR",
+                          "ordinalPosition": 1
+                        },
+                        "customer_email": {
+                          "type": "string",
+                          "name": "customer_email",
+                          "description": "Email address of the customer",
+                          "kind": "ATTRIBUTE",
+                          "required": true,
+                          "displayName": "Customer Email",
+                          "default": null,
+                          "isUnique": false,
+                          "isNullable": true,
+                          "length": 255,
+                          "physicalType": "VARCHAR",
+                          "ordinalPosition": 2
+                        },
+                        "payment_month": {
+                          "type": "string",
+                          "format": "date-time",
+                          "name": "payment_month",
+                          "description": "Month of the payment",
+                          "kind": "ATTRIBUTE",
+                          "required": true,
+                          "displayName": "Payment Month",
+                          "default": null,
+                          "isUnique": false,
+                          "isNullable": false,
+                          "physicalType": "TIMESTAMP",
+                          "ordinalPosition": 3
+                        },
+                        "total_payment": {
+                          "type": "number",
+                          "name": "total_payment",
+                          "description": "Total payment amount for the month",
+                          "kind": "ATTRIBUTE",
+                          "required": true,
+                          "displayName": "Total Payment",
+                          "default": null,
+                          "isUnique": false,
+                          "isNullable": false,
+                          "physicalType": "NUMERIC",
+                          "ordinalPosition": 4
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          },
+          "deprecationPolicy": {
+            "description": "When a new major version becomes available, the previous one is kept online for 7 days.",
+            "x-deprecation-period": "7D"
+          },
+          "slo": null
+        },
+        "expectations": null,
+        "contracts": null,
+        "tags": []
+      }
+    ]
   },
   "internalComponents": {
     "lifecycleInfo": {
