@@ -75,13 +75,23 @@
                     "specification": "json-schema",
                     "specificationVersion": "1",
                     "definition": {
-                      "name": "entity",
+                      "name": "v_monthly_customer_payments",
                       "version": "1.0.0",
                       "fullyQualifiedName": "${BD_fullyQualifiedName}:${BD_version}:outputPorts:${output_port_name}:tables:film_rental_sales.profit.v_monthly_customer_payments",
                       "displayName": "Monthly Customer Payments",
                       "description": "The view that store the information about monthly customer payments",
                       "physicalType": "VIEW",
                       "type": "object",
+                      "s-context": {
+                        "s-base": "https://demo.blindata.io/logical/namespaces/name/filmRentalInc#",
+
+                        "s-type": "[Customer]",
+
+                        "customer_id": "Customer  ID",
+                        "customer_email": "Email",
+                        "payment_month": "makes a[Payment].Payment Date",
+                        "total_payment": "makes a[Payment].Amount"
+                      },
                       "properties": {
                         "customer_id": {
                           "type": "string",
