@@ -87,10 +87,10 @@
 
                         "s-type": "[Customer]",
 
-                        "customer_id": "Customer  ID",
-                        "customer_email": "Email",
-                        "payment_month": "makes a[Payment].Payment Date",
-                        "total_payment": "makes a[Payment].Amount"
+                        "customer_id": "[Customer].Customer  ID",
+                        "customer_email": "[Customer].Email",
+                        "payment_month": "[Customer].makes a[Payment].Payment Date",
+                        "total_payment": "[Customer].makes a[Payment].Amount"
                       },
                       "properties": {
                         "customer_id": {
