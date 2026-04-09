@@ -1,0 +1,16 @@
+.terraform/
+*.tfstate
+*.tfstate.*
+.terraform.lock.hcl
+crash.log
+crash.*.log
+override.tf
+override.tf.json
+*_override.tf
+target/
+logs/
+*.duckdb
+__pycache__/
+*.py[cod]
+.venv/
+venv/

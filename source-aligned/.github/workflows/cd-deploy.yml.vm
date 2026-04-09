@@ -1,0 +1,52 @@
+# Protected: CD — one job per environment from manifest `environments` (matrix).
+# After ODM instantiation, Velocity renders this file to cd-deploy.yml (no .vm suffix).
+# Terraform/dlt steps receive the active stage via matrix.environment → TF_VAR_environment.
+# Note: ODM emits one output file per .vm template; per-environment workflow *files* would
+# require one template per env name. This matrix workflow is the idiomatic equivalent.
+name: Source-aligned data product deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+jobs:
+  blueprint-sanity:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Manifest present
+        run: test -f blueprint/blueprint.yaml
+      - name: DPDS descriptor template present
+        run: test -f data-product-descriptor.json.vm
+      - name: Core module present
+        run: test -f infrastructure/core/storage.tf.vm
+      - name: dlt pipeline present
+        run: test -f pipeline/source_aligned_pipeline.py && test -f requirements.txt
+
+  deploy:
+    name: cd-deploy-${{ matrix.environment }}
+    needs: blueprint-sanity
+    runs-on: ubuntu-latest
+    environment: ${{ matrix.environment }}
+    concurrency:
+      group: source-aligned-deploy-${{ matrix.environment }}
+      cancel-in-progress: false
+    strategy:
+      fail-fast: false
+      matrix:
+        environment:
+#foreach($env in $environments)
+          - $env
+#end
+
+    steps:
+      - uses: actions/checkout@v4
+      - name: Placeholder — Terraform plan / apply on rendered .tf
+        env:
+          TF_VAR_environment: ${{ matrix.environment }}
+        run: echo "Deploying to ${{ matrix.environment }} — run terraform in infrastructure/ after .vm rendering (TF_VAR_environment is set for this leg)."
+      - name: Placeholder — dlt run
+        env:
+          TF_VAR_environment: ${{ matrix.environment }}
+        run: echo "pip install -r requirements.txt; render settings.py from settings.py.vm; PYTHONPATH=. python -m pipeline.source_aligned_pipeline"

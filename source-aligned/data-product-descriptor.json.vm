@@ -1,0 +1,70 @@
+{
+  "dataProductDescriptor": "1.0.0",
+  "info": {
+    "fullyQualifiedName": "${dpFqn}",
+    "name": "${dpName}",
+    "version": "1.0.0",
+    "displayName": "${dpDisplayName}",
+    "description": "#if($dpDescription)${dpDescription} — #endSource-aligned data product: operational data is landed immutably in raw storage; a dlt pipeline loads and transforms into curated outputs. PII treatment: #if($enable_pii_masking)example hashing for designated fields in the pipeline.#else follow organizational policy for sensitive fields.#end Retention policy: $data_retention_days days (raw lifecycle).",
+    "domain": "${dpDomain}",
+    "owner": {
+      "id": "${dpOwnerId}",
+      "name": "${dpOwnerName}"
+    },
+    "contactPoints": [
+      {
+        "name": "Domain owner",
+        "description": "Primary contact for this data product.",
+        "channel": "email",
+        "address": "${dpOwnerId}"
+      }
+    ]
+  },
+  "interfaceComponents": {
+    "inputPorts": [
+      {
+        "name": "operationalDataFeed",
+        "version": "1.0.0",
+        "displayName": "Operational data feed",
+        "description": "Batch extracts, CDC, or file drops from operational systems into the raw landing zone.",
+      }
+    ],
+    "outputPorts": [
+      {
+        "name": "curatedSqlOutput",
+        "version": "1.0.0",
+        "displayName": "Curated SQL / catalog output",
+        "description": "Expose curated datasets via your warehouse query engine and catalog (e.g. Athena, Glue). Add concrete DatastoreAPI or OpenAPI definitions after instantiation when tables are known.",
+        
+      }
+    ],
+    "discoveryPorts": [
+      {
+        "name": "glueDataCatalog",
+        "version": "1.0.0",
+        "displayName": "AWS Glue Data Catalog",
+        "description": "Discovery of databases and tables produced by this data product.",
+        "componentGroup": "governance",
+        "promises": {
+          "platform": "aws:eu-west-1:glue",
+          "servicesType": "datastore-services"
+        }
+      }
+    ]
+  },
+  "internalComponents": {
+    "lifecycleInfo": {
+#foreach($env in $environments)
+      "${env}": []#if($foreach.hasNext),#end
+#end
+    }
+  },
+  "tags": [
+    "source-aligned"#foreach($env in $environments), "$env"#end
+  ],
+  "externalDocs": {
+    "description": "Data Product Descriptor Specification",
+    "mediaType": "text/html",
+    "\$href": "https://dpds.opendatamesh.org/specifications/dpds/1.0.0/"
+  }
+}

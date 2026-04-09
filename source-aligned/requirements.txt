@@ -1,0 +1,2 @@
+# Pin versions in your data product repo as needed.
+dlt[duckdb]>=1.0.0,<2

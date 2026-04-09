@@ -1,0 +1,4 @@
+# Generated at blueprint instantiation from manifest parameters. Safe to adjust locally.
+ENABLE_PII_MASKING = #if($enable_pii_masking)True#else False#end
+
+DOMAIN_SLUG = "$domain_slug"
