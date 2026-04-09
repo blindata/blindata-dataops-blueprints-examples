@@ -60,10 +60,5 @@
   },
   "tags": [
     "source-aligned"#foreach($env in $environments), "$env"#end
-  ],
-  "externalDocs": {
-    "description": "Data Product Descriptor Specification",
-    "mediaType": "text/html",
-    "\$href": "https://dpds.opendatamesh.org/specifications/dpds/1.0.0/"
-  }
+  ]
 }
