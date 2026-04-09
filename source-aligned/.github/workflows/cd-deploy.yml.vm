@@ -1,7 +1,7 @@
 # Protected: CD — one job per environment from manifest `environments` (matrix).
-# After ODM instantiation, Velocity renders this file to cd-deploy.yml (no .vm suffix).
+# After blueprint instantiation, Velocity renders this file to cd-deploy.yml (no .vm suffix).
 # Terraform/dlt steps receive the active stage via matrix.environment → TF_VAR_environment.
-# Note: ODM emits one output file per .vm template; per-environment workflow *files* would
+# Note: one rendered output file per .vm template; per-environment workflow *files* would
 # require one template per env name. This matrix workflow is the idiomatic equivalent.
 name: Source-aligned data product deploy
 
@@ -20,7 +20,7 @@ jobs:
       - name: DPDS descriptor template present
         run: test -f data-product-descriptor.json.vm
       - name: Core module present
-        run: test -f infrastructure/core/storage.tf.vm
+        run: test -f infrastructure/core/storage.tf
       - name: dlt pipeline present
         run: test -f pipeline/source_aligned_pipeline.py && test -f requirements.txt
 

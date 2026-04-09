@@ -3,7 +3,7 @@
 
 data "aws_vpc" "mesh_network" {
   tags = {
-    Name = "odm-shared-mesh-vpc-${var.environment}"
+    Name = "sdp-shared-vpc-${var.environment}"
   }
 }
 

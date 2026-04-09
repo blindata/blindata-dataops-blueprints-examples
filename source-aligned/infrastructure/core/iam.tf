@@ -1,7 +1,7 @@
 # Protected: baseline IAM — narrow roles for ingest, transform, and read-only consumers.
 
 data "aws_iam_role" "central_governance" {
-  name = "odm-lakeformation-central-admin"
+  name = "example-lakeformation-central-admin"
 }
 
 resource "aws_iam_role" "ingest_raw" {

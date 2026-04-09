@@ -19,7 +19,7 @@ to match your platform.
 | Path | Role |
 |------|------|
 | `data-product-descriptor.json.vm` | DPDS descriptor template (Velocity); rendered at instantiation |
-| `blueprint/` | ODM manifest and blueprint documentation (not instantiated as product README) |
+| `blueprint/` | Blueprint manifest and documentation (not instantiated as product README) |
 | `infrastructure/` | Terraform templates and protected core modules |
 | `pipeline/` | dlt Python package (`source_aligned_pipeline.py`, `settings.py.vm` → `settings.py`) |
 | `requirements.txt` | Python dependencies (`dlt`, etc.) |

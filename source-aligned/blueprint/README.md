@@ -4,7 +4,7 @@
 
 This blueprint defines a **source-aligned data product** : operational data is **landed immutably** in raw storage, **transformed and loaded** (here with [dlt](https://dlthub.com/)), and **exposed** to consumers via your catalog or warehouse. It is a **monorepo template**—Terraform, pipeline, and CI stubs are included so a team gets a consistent baseline; **domain-specific ingestion, schemas, and production wiring are left for you to implement** after instantiation.
 
-This folder holds **blueprint metadata** only: the `odm-blueprint-manifest` and this documentation. The **Data Product Descriptor Specification (DPDS) 1.0.0** template is at the repository root: `[../data-product-descriptor.json.vm](../data-product-descriptor.json.vm)`. The Velocity README that becomes the **data product** repo root (`../README.md.vm`) is product documentation, not part of the blueprint definition folder.
+This folder holds **blueprint metadata** only: the manifest (`[blueprint.yaml](blueprint.yaml)`) and this documentation. The **Data Product Descriptor Specification (DPDS) 1.0.0** template is at the repository root: `[../data-product-descriptor.json.vm](../data-product-descriptor.json.vm)`. The Velocity README that becomes the **data product** repo root (`../README.md.vm`) is product documentation, not part of the blueprint definition folder.
 
 ## Contents
 

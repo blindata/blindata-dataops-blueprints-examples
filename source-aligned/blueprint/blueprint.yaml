@@ -1,4 +1,4 @@
-# Open Data Mesh Blueprint Manifest — Source-Aligned (monorepo, no composition)
+# Blueprint manifest — Source-Aligned (monorepo, no composition)
 # Register via BlueprintRepo.manifestRootPath: blueprint/blueprint.yaml (repository-relative).
 spec: odm-blueprint-manifest
 specVersion: 1.0.0
