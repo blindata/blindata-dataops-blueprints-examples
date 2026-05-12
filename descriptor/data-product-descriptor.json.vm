@@ -46,7 +46,7 @@
         "version": "${input_port_version}",
         "displayName": "PostgreSQL ${schema} (${source_table_name})",
         "description": "Read-only source; schema.system declaration under promises.api (datastoreapi).",
-        "dependsOn": "${dependsOn}",
+        "dependsOn": "blindata:systems:${dependsOn}",
         "promises": {
           "platform": "${postgres_database_name}",
           "servicesType": "datastore-services",
@@ -92,7 +92,7 @@
 #end
         "description": "BigQuery consolidated table; schema under promises.api (datastoreapi).",
         "promises": {
-          "platform": "${bq_dataset_id}",
+          "platform": "GoogleBigQuery:${gcp_project_id}",
           "servicesType": "datastore-services",
           "api": {
             "name": "${output_port_name}",

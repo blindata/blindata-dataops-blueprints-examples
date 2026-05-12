@@ -2,7 +2,7 @@ spec: odm-blueprint-manifest
 specVersion: 1.0.0
 name: gcp-postgres-bigquery-ingest-dpds
 displayName: "GCP: PostgreSQL → BigQuery ingest (DPDS-driven)"
-version: 1.0.2
+version: 1.0.3
 description: >
   Provisions BigQuery dataset, GCS staging, and a Cloud Run Job that runs a dlt-based
   extractor driven by a DPDS-aligned data-product-descriptor.json (rendered from Velocity templates).
@@ -47,6 +47,7 @@ parameters:
   - key: dpName
     type: string
     required: true
+    default: ""
     validation:
       pattern: '^[a-z0-9-]+$'
     ui:
@@ -60,6 +61,7 @@ parameters:
   - key: dpFqn
     type: string
     required: true
+    default: ""
     ui:
       group: Data Product Details
       label: Data Product FQN
@@ -71,6 +73,7 @@ parameters:
   - key: dpDisplayName
     type: string
     required: true
+    default: ""
     ui:
       group: Data Product Details
       label: Display Name
@@ -81,6 +84,7 @@ parameters:
   - key: dpDescription
     type: string
     required: false
+    default: ""
     ui:
       group: Data Product Details
       label: Description
@@ -162,7 +166,11 @@ parameters:
     ui:
       group: GCP / Terraform
       label: Remote state GCS bucket
-      description: Pre-provisioned bucket name for Terraform state (no protocol prefix).
+      description: >-
+        Name (no `gs://` prefix) of a pre-existing GCS bucket that backs the Terraform remote
+        state for this product. Rendered into `infrastructure/backend.tf` as the `gcs` backend
+        `bucket` and exported to the Deploy workflow as `TF_STATE_BUCKET`. The blueprint does
+        **not** create this bucket; provision it once per platform.
       formType: text
 
   - key: tf_state_prefix
@@ -174,7 +182,11 @@ parameters:
     ui:
       group: GCP / Terraform
       label: State prefix
-      description: Prefix path inside the state bucket for this product.
+      description: >-
+        Object-prefix path inside the state bucket where this product's `terraform.tfstate` is
+        written (one folder per product to keep states isolated when multiple data products share
+        the same state bucket). Rendered into `infrastructure/backend.tf` as the backend `prefix`
+        and exported to Deploy as `TF_STATE_PREFIX`.
       formType: text
 
   # ----- GCP / Delivery --------------------------------------------------------
@@ -187,7 +199,11 @@ parameters:
     ui:
       group: GCP / Delivery
       label: Artifact Registry repository id
-      description: Existing Artifact Registry Docker repository that stores the Cloud Run Job container image.
+      description: >-
+        Id of a pre-existing Artifact Registry Docker repository in `gcp_project_id` /
+        `gcp_region` where the Publish workflow pushes the runner image
+        (`<region>-docker.pkg.dev/<project>/<repo>/<dpName>:<image_tag>`) and from which Cloud Run
+        pulls it at deploy time. Repository creation is not managed by this blueprint.
       formType: text
 
   - key: gcs_staging_bucket
@@ -199,7 +215,11 @@ parameters:
     ui:
       group: GCP / Delivery
       label: GCS staging bucket name
-      description: Globally unique bucket for dlt staging (created by Terraform if absent).
+      description: >-
+        Globally unique GCS bucket name (no `gs://` prefix) that dlt uses as a staging tier between
+        the extract step and the BigQuery load. Created by Terraform in `gcp_region`; exposed to
+        the Cloud Run Job as `INGEST_GCS_STAGING=gs://<bucket>`. Picks up dlt's intermediate
+        Parquet files before the load job rewrites them into BigQuery.
       formType: text
 
   - key: cloud_run_job_name
@@ -211,7 +231,11 @@ parameters:
     ui:
       group: GCP / Delivery
       label: Cloud Run Job name
-      description: DNS label for the ingest job (often dpName + environment).
+      description: >-
+        DNS-safe name of the `google_cloud_run_v2_job` resource Terraform creates per environment
+        (suffixed with `${environment}` at apply time). This is the job operators run on-demand or
+        from Cloud Scheduler to execute one ingest cycle; it carries the pinned image tag plus all
+        the `INGEST_*` / credentials env vars.
       formType: text
 
   # ----- GitHub Actions --------------------------------------------------------
@@ -222,7 +246,11 @@ parameters:
     ui:
       group: GitHub Actions
       label: Workload Identity Federation provider
-      description: Full resource name of the WIF provider used by google-github-actions/auth.
+      description: >-
+        Full resource name of the Workload Identity Federation provider
+        (`projects/<number>/locations/global/workloadIdentityPools/<pool>/providers/<provider>`)
+        passed to `google-github-actions/auth@v2` as `workload_identity_provider`. Lets Publish
+        and Deploy authenticate to GCP via OIDC, with no JSON keys stored in the repo.
       formType: text
 
   - key: wif_service_account
@@ -232,7 +260,12 @@ parameters:
     ui:
       group: GitHub Actions
       label: WIF service account email
-      description: Google service account email federated for GitHub Actions deployments.
+      description: >-
+        E-mail of the Google service account that GitHub Actions impersonates (via the WIF
+        provider above) to run Publish (push the image to Artifact Registry) and Deploy
+        (`terraform apply` against the GCS state backend). Needs at minimum Artifact Registry
+        writer, Storage admin on the state bucket, and the IAM rights Terraform uses to manage
+        the rest of the stack.
       formType: text
 
   # ----- Input port (PostgreSQL) -----------------------------------------------
@@ -244,7 +277,12 @@ parameters:
     ui:
       group: Input port (PostgreSQL)
       label: Secret Manager secret id (Postgres)
-      description: Secret containing read-only connection URI or JSON for dlt PostgreSQL source.
+      description: >-
+        Bare Secret Manager secret id (no project path) holding the **read-only** PostgreSQL
+        connection material. Terraform mounts the latest version into the Cloud Run Job at
+        `/secrets/postgres/credentials`; the runner reads it via `SOURCES__POSTGRES__CREDENTIALS`.
+        Payload may be a SQLAlchemy URI (`postgresql+psycopg://user:pwd@host:5432/db`) or a JSON
+        object with `host` / `user` / `password` / `database` (and optional `port`).
       formType: text
 
   - key: postgres_database_name
@@ -256,9 +294,11 @@ parameters:
     ui:
       group: Input port (PostgreSQL)
       label: PostgreSQL database name
-      description: >
-        Logical database name for the source (promises.platform on each input port). Must match the
-        database in your Postgres connection secret; not read by the runner beyond the descriptor.
+      description: >-
+        Logical PostgreSQL database the input ports describe. Rendered as `promises.platform` on
+        every generated input port (the catalog's notion of "database"). Documentation /
+        contract-side value only — the actual connection still comes from the secret and **must**
+        target the same database for the contract to be truthful.
       formType: text
 
   - key: input_schemas
@@ -271,11 +311,13 @@ parameters:
     ui:
       group: Input port (PostgreSQL)
       label: PostgreSQL schemas (one input port each)
-      description: >
-        Each entry is a Postgres schema name; the rendered descriptor emits one datastoreapi input
-        port per entry (single databaseSchemaName per port). The connection URI still comes from the
-        secret; **postgres_database_name** must match that database and is used as **platform** on
-        each input port.
+      description: >-
+        List of PostgreSQL schema names this product is authorized to read. The Velocity template
+        emits **one `datastoreapi` input port per entry** (named `${input_port_name_prefix}<idx>`,
+        with `databaseSchemaName` set to the schema). At runtime the extractor opens one
+        connection per port and reads `source_table_name` from each, tagging every row with
+        `row_discriminator_column = <schema>` so consumers can tell rows apart after
+        consolidation.
       formType: stringList
 
   - key: source_table_name
@@ -287,7 +329,10 @@ parameters:
     ui:
       group: Input port (PostgreSQL)
       label: Source table name
-      description: Same physical table name in each authorized schema.
+      description: >-
+        Physical PostgreSQL table name to read. The runner expects the **same table name in every
+        schema** listed in `input_schemas` and uses it both as `tables[0].name` on each input port
+        and as the table the bounded `SELECT` queries hit at extraction time.
       formType: text
 
   - key: row_discriminator_column
@@ -299,7 +344,12 @@ parameters:
     ui:
       group: Input port (PostgreSQL)
       label: Row discriminator column
-      description: Column name injected per row with the source schema name.
+      description: >-
+        Name of an extra column the extractor **injects** into every emitted row, filled with the
+        source schema name (e.g. `source_schema = "tenant_a"`). Lets `transform_hook.py` and
+        downstream queries tell rows apart after the multi-schema consolidation; also a natural
+        candidate for BigQuery clustering. Exposed to the runner as
+        `INGEST_ROW_DISCRIMINATOR_COLUMN`.
       formType: text
 
   - key: cursor_field
@@ -311,7 +361,11 @@ parameters:
     ui:
       group: Input port (PostgreSQL)
       label: Cursor field (optional)
-      description: Column for incremental extraction; leave empty for full snapshots.
+      description: >-
+        Optional source column used for **incremental extraction**. When set, the runner persists
+        the max value seen so far at `CURSOR_STATE_PATH` and only fetches rows with
+        `<cursor_field> > <watermark>` on the next run. Leave empty to run **full snapshots**
+        every time. Surfaced to the runner as `INGEST_CURSOR_FIELD`.
       formType: text
 
   - key: input_port_name_prefix
@@ -323,9 +377,11 @@ parameters:
     ui:
       group: Input port (PostgreSQL)
       label: Input port name prefix
-      description: >
-        Port machine names are `${prefix}${index}` (e.g. pgin0, pgin1) so each generated input port
-        stays unique and DNS-safe.
+      description: >-
+        Prefix used to mint the machine name of every generated input port. Names are
+        `${prefix}<index>` (e.g. `pgin0`, `pgin1`) and the matching `fullyQualifiedName` becomes
+        `${dpFqn}:inputports:${prefix}<index>`. Keep it short, lowercase and DNS-safe — it ends
+        up in URNs and Terraform identifiers.
       formType: text
 
   - key: input_port_version
@@ -361,7 +417,12 @@ parameters:
     ui:
       group: Output port (BigQuery)
       label: Secret Manager secret id (BigQuery SA)
-      description: Service account JSON for dlt BigQuery destination.
+      description: >-
+        Bare Secret Manager secret id (no project path) holding the **BigQuery service account
+        JSON key** that dlt uses to authenticate against the destination. Terraform mounts the
+        secret at `/secrets/bq/credentials.json` and the runner reads it via
+        `DESTINATION__BIGQUERY__CREDENTIALS` / `GOOGLE_APPLICATION_CREDENTIALS`. Needs at least
+        BigQuery dataEditor + jobUser on the load dataset and objectAdmin on the staging bucket.
       formType: text
 
   - key: bq_dataset_id
@@ -373,7 +434,12 @@ parameters:
     ui:
       group: Output port (BigQuery)
       label: BigQuery dataset ID
-      description: BigQuery dataset id for the load target; also used as **promises.platform** on the output port (database name in the contract).
+      description: >-
+        BigQuery dataset that holds the consolidated output table. Created by Terraform in
+        `gcp_project_id` / `gcp_region` and also stamped on the output port as
+        **`promises.platform`** and **`databaseSchemaName`** (BigQuery datasets play the role of
+        "schema" in the datastoreapi contract). dlt writes the load into
+        `${gcp_project_id}.${bq_dataset_id}.${bq_table_id}`.
       formType: text
 
   - key: bq_table_id
@@ -385,7 +451,12 @@ parameters:
     ui:
       group: Output port (BigQuery)
       label: BigQuery table ID
-      description: Name of the destination BigQuery table that dlt writes consolidated rows into.
+      description: >-
+        BigQuery table id where dlt writes the consolidated rows (full path
+        `${gcp_project_id}.${bq_dataset_id}.${bq_table_id}`). Same value is rendered as
+        `tables[0].name` on the output port and used by the dlt resource as
+        `write_disposition="replace"` — i.e. each run **replaces** the table contents with the
+        validated output of `transform_hook.py`.
       formType: text
 
   - key: bq_partition_field
@@ -397,7 +468,12 @@ parameters:
     ui:
       group: Output port (BigQuery)
       label: Partition column
-      description: Column used to partition the BigQuery output table (typically a DATE or TIMESTAMP field).
+      description: >-
+        Column the BigQuery output table is time-partitioned on (typically a `DATE` or
+        `TIMESTAMP` field such as `loaded_at` or an event date). Lets BigQuery prune partitions
+        for time-range queries, dropping bytes scanned and cost. Passed to the runner as
+        `INGEST_BQ_PARTITION_FIELD` (and is intended to be applied to the physical table when
+        the table-creation path wires it in).
       formType: text
 
   - key: bq_cluster_fields
@@ -410,7 +486,13 @@ parameters:
     ui:
       group: Output port (BigQuery)
       label: Clustering columns
-      description: Ordered list (1–4) of columns used to cluster the BigQuery output table for query pruning.
+      description: >-
+        Ordered list of 1–4 columns BigQuery uses to cluster the output table (block-level
+        sort within each partition). Order matters — put the column you filter on most often
+        first. Drastically reduces bytes scanned for equality / range filters / joins on those
+        columns. Passed to the runner as a CSV in `INGEST_BQ_CLUSTER_FIELDS`. A common choice
+        here is `row_discriminator_column` so queries scoped to a single source schema prune
+        cleanly.
       formType: stringList
 
   - key: output_port_name
