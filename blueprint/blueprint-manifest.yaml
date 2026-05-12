@@ -2,7 +2,7 @@ spec: odm-blueprint-manifest
 specVersion: 1.0.0
 name: gcp-postgres-bigquery-ingest-dpds
 displayName: "GCP: PostgreSQL → BigQuery ingest (DPDS-driven)"
-version: 0.1.0
+version: 1.0.2
 description: >
   Provisions BigQuery dataset, GCS staging, and a Cloud Run Job that runs a dlt-based
   extractor driven by a DPDS-aligned data-product-descriptor.json (rendered from Velocity templates).
