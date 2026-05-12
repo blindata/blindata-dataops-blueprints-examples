@@ -1,0 +1,78 @@
+#set($h = '#')
+#set($title = $dpDisplayName)
+#if(!$title || $title == "")
+#set($title = $dpName)
+#end
+${h} ${title}
+
+${h}${h} Data product overview
+
+This repository is the **instantiated data product** created from the **GCP PostgreSQL → BigQuery ingest** blueprint. It implements a governed pipeline: **read-only PostgreSQL** extraction (one **input port** per configured schema), **your** transformation in **`application/transform_hook.py`**, **JSON Schema** validation against the **output port** contract, and **dlt** load into **BigQuery** with **GCS** staging.
+
+#if($dpDescription && $dpDescription != "")
+**Description:** ${dpDescription}
+
+#end
+- **Technical name:** `${dpName}`
+#if($dpFqn && $dpFqn != "")
+- **FQN:** `${dpFqn}`
+#end
+- **Domain:** `${dpDomain}`
+- **Data product version:** `${data_product_version}`
+- **Owner:** ${dpOwnerName} (`${dpOwnerId}`)
+
+${h}${h} Use case
+
+**In scope:** Consolidate the same logical **PostgreSQL table** from **multiple schemas** (or a single schema) into **one BigQuery table**, with a stable **datastoreapi** column contract on the output port, secrets in **Secret Manager**, infrastructure as code (**Terraform**), and CI (**Publish** image, **Deploy** per environment).
+
+**Your responsibility:** Map source rows to the output contract in **`application/transform_hook.py`**, keep secrets and Terraform variables accurate, and run or schedule the **Cloud Run Job** after each deploy.
+
+${h}${h} Repository layout
+
+| Path | Purpose |
+| --- | --- |
+| **`descriptor/data-product-descriptor.json`** | **DPDS** contract: input/output ports, **lifecycleInfo** slots for each environment. Rendered at instantiation; adjust only through your platform process if parameters change. |
+| **`application/`** | Python ingest package; **`transform_hook.py`** is the main code you implement. |
+| **`application/src/`** | Generic runner: descriptor parsing, Postgres extract, validation, **dlt** load. |
+| **`infrastructure/`** | **Terraform**: BigQuery dataset, GCS bucket, Cloud Run Job, IAM, secret wiring. |
+| **`Dockerfile`** | Image that runs **`python -m src.main`**. |
+| **`.github/workflows/publish.yml`** | Build and push the runner image (tag or manual **`image_tag`**). |
+| **`.github/workflows/deploy.yml`** | **Terraform apply** for one **environment** and one published **`image_tag`**. |
+| **`blueprint-manifest.yaml`** | Original blueprint parameter schema (reference); instantiated values are already reflected in the descriptor and workflows. |
+
+${h}${h}${h} Lifecycle environments
+
+These names are the **Terraform** **`environment`** values and the **`internalComponents.lifecycleInfo`** keys generated for this repository. Run **Deploy** once per environment with a published container **`image_tag`**.
+
+#foreach($env in $environments)
+- **`${env}`**
+#end
+
+${h}${h} Next steps (implementation and curation)
+
+1. **Implement `application/transform_hook.py`**  
+   Implement **`transform_rows`** so every emitted row matches **`interfaceComponents.outputPorts[0]`** — **`promises.api.definition.schema.tables[0].definition.properties`** (the runner builds a JSON Schema from that object). For a quick connectivity check only, you may set **`TRANSFORM_HOOK_IDENTITY=1`** if rows already satisfy the contract (not for production mapping).
+
+2. **Verify secrets in Google Secret Manager**  
+   Ensure the Postgres secret (URI or JSON host/user/password/database) and the BigQuery service account JSON match the ids referenced at deploy time. Confirm database access is **read-only** as intended.
+
+3. **Align descriptor with runtime**  
+   Open **`descriptor/data-product-descriptor.json`**: input ports should match the PostgreSQL schemas you configured at instantiation; **`internalComponents.lifecycleInfo`** keys must match the **Lifecycle environments** list above. Output port **dataset** / **table** ids must match Terraform **`bq_dataset_id`** / **`bq_table_id`**.
+
+4. **Publish then deploy**  
+   Cut a version tag (for example **`v1.0.0`**) or run **Publish** with an explicit **`image_tag`**. Then run **Deploy** for each target environment with the **same** **`image_tag`**. Resolve any Terraform drift before relying on the job in production.
+
+5. **Schedule and observe**  
+   Attach **Cloud Scheduler** or your orchestrator to the **Cloud Run Job**, and monitor logs, BigQuery row counts, and validation errors.
+
+6. **Contract changes**  
+   When the output column set changes, update the catalog / manifest that feeds **`output_table_properties`**, re-instantiate or re-render the descriptor as your process requires, bump **`output_port_version`** (and **`data_product_version`** if appropriate), publish a new image, and redeploy.
+
+${h}${h} Runtime environment (Cloud Run)
+
+The job receives at least: **`DESCRIPTOR_PATH`**, **`SOURCES__POSTGRES__CREDENTIALS`**, **`DESTINATION__BIGQUERY__CREDENTIALS`**, **`INGEST_GCS_STAGING`**, **`INGEST_GCP_PROJECT_ID`**, **`INGEST_BQ_PARTITION_FIELD`**, **`INGEST_BQ_CLUSTER_FIELDS`**, **`INGEST_CURSOR_FIELD`**, **`INGEST_ROW_DISCRIMINATOR_COLUMN`**. See **`application/README.md`** for how the Python code uses each variable.
+
+${h}${h} References
+
+- [Data Product Descriptor Specification (DPDS)](https://dpds.opendatamesh.org/specifications/dpds/)
+- [Apache Velocity](https://velocity.apache.org/engine/devel/user-guide.html)

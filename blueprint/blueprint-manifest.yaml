@@ -13,8 +13,9 @@ description: >
 # Explicitly declare all inputs required from the user to instantiate this Blueprint.
 #
 # Reserved keys (dp*) are declared explicitly and auto-filled from the Data Product information and
-# your profile; the instantiation UI groups them under "Auto-filled parameters". See README
-# "Reserved parameter keys". Other keys are user-supplied technical configuration (GCP, ports, etc.).
+# your profile; the instantiation UI groups them under "Auto-filled parameters". See
+# blueprint/README.md ("Reserved catalog parameters"). Other keys are user-supplied technical
+# configuration (GCP, ports, etc.).
 # ----------------------------------------------------------------------------
 parameters:
   - key: environments
