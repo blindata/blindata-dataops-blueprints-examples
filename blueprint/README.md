@@ -4,19 +4,17 @@
 
 The blueprint defines a **governed ingest** on **Google Cloud**: read-only **PostgreSQL** extracts (one or more schemas, same logical table) flow through a containerized runner into **BigQuery**, with **GCS** staging, **Secret Manager** credentials, **Terraform** infrastructure, and **GitHub Actions** for build and deploy.
 
-The **Python** application implements a fixed pipeline (extract → your transform hook → JSON Schema validation → **dlt** load); **business column mapping** belongs in `application/transform_hook.py` after instantiation.
+The **Python** application implements a fixed pipeline (extract → your transform hook → JSON Schema validation → **dlt** load); **business column mapping** should be implemented in `application/transform_hook.py` after instantiation.
 
 ## Data product use case
 
 **Problem:** You need a repeatable pattern to land PostgreSQL data into BigQuery under a **single output contract**, with infrastructure and delivery aligned to **environments** (for example `dev`, `prod`).
 
-**What the instantiated product owns:** Declare the **output column contract** by editing `descriptor/data-product-descriptor.json` at `interfaceComponents.outputPorts[0].promises.api.definition.schema.tables[0].definition.properties` (the rendered file ships with a `$comment` placeholder), implement `transform_hook.py` to match that contract, curate **Secret Manager** values, run **Publish** then **Deploy** per environment, and operate the **Cloud Run Job** (schedule, monitoring). The blueprint supplies the generic extract, validation, load path, Terraform modules, Docker image, and templated descriptor and workflows.
-
 **Out of scope for the blueprint itself:** Detailed business rules inside the generic modules (those live in the hook), the **output port column map** (declared in the instantiated descriptor, not as a blueprint parameter), provisioning the remote Terraform state bucket, and automatic reconciliation of every possible source column to the output without your hook logic.
 
 ### High-level architecture
 
-At runtime the **Cloud Run Job** runs the containerized pipeline (extract → `transform_hook` → validation → **dlt** load). **Publish** and **Deploy** deliver the image and apply Terraform per environment; credentials never live in the repo.
+At runtime the **Cloud Run Job** runs the containerized pipeline (extract → `transform_hook` → validation → **dlt** load). The pipelines **Publish** and **Deploy** respectively deliver the image and apply Terraform per environment; credentials never live in the repo.
 
 ```mermaid
 flowchart TB
