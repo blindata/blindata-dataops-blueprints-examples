@@ -1,0 +1,115 @@
+## Apache Velocity → deploy.yml. Use #[[ ... ]]# so GitHub ${{ }} survives rendering.
+## Provision GCP infrastructure for one environment. Intended to be triggered externally
+## (repository_dispatch, workflow_dispatch from UI/API, or another workflow) with the
+## image tag that matches a published data-product version build.
+name: Deploy infrastructure
+
+#[[
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Target environment (Terraform var.environment; must match a lifecycleInfo key)
+        type: choice
+        required: true
+        options:
+#foreach($env in $environments)
+          - ${env}
+#end
+      image_tag:
+        description: Container image tag already published to Artifact Registry (same as publish workflow)
+        type: string
+        required: true
+  repository_dispatch:
+    types: [deploy-ingest]
+]]#
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: deploy-${dpName}-${gcp_project_id}
+  cancel-in-progress: false
+
+env:
+  GCP_PROJECT_ID: ${gcp_project_id}
+  GCP_REGION: ${gcp_region}
+  TF_STATE_BUCKET: ${tf_state_bucket_address}
+  TF_STATE_PREFIX: ${tf_state_prefix}
+  ARTIFACT_REPO: ${artifact_registry_repository}
+  IMAGE_NAME: ingest-runner
+
+jobs:
+  terraform-apply:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Resolve dispatch inputs
+        id: in
+        run: |
+          #[[
+          set -euo pipefail
+          if [[ "${{ github.event_name }}" == "repository_dispatch" ]]; then
+            ENV="${{ github.event.client_payload.environment }}"
+            TAG="${{ github.event.client_payload.image_tag }}"
+          else
+            ENV="${{ github.event.inputs.environment }}"
+            TAG="${{ github.event.inputs.image_tag }}"
+          fi
+          if [[ -z "${ENV}" || -z "${TAG}" ]]; then
+            echo "::error::environment and image_tag must be set (workflow_dispatch inputs or client_payload)"
+            exit 1
+          fi
+          echo "environment=${ENV}" >> "${GITHUB_OUTPUT}"
+          echo "image_tag=${TAG}" >> "${GITHUB_OUTPUT}"
+          echo "DEPLOY_ENVIRONMENT=${ENV}" >> "${GITHUB_ENV}"
+          echo "IMAGE_TAG=${TAG}" >> "${GITHUB_ENV}"
+          ]]#
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${wif_provider}
+          service_account: ${wif_service_account}
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.8.5"
+
+      - name: Terraform Init
+        working-directory: infrastructure
+        run: |
+          terraform init \
+            -input=false \
+            -backend-config="bucket=${TF_STATE_BUCKET}" \
+            -backend-config="prefix=${TF_STATE_PREFIX}"
+
+      - name: Terraform Apply
+        working-directory: infrastructure
+        run: |
+          terraform apply -auto-approve \
+            -var="gcp_project_id=${GCP_PROJECT_ID}" \
+            -var="gcp_region=${GCP_REGION}" \
+            -var="environment=${DEPLOY_ENVIRONMENT}" \
+            -var="data_product_name=${dpName}" \
+            -var="gcs_staging_bucket=${gcs_staging_bucket}" \
+            -var="bq_dataset_id=${bq_dataset_id}" \
+            -var="bq_partition_field=${bq_partition_field}" \
+            -var="bq_cluster_fields_csv=#foreach($f in $bq_cluster_fields)${f}#if($foreach.hasNext),#end#end" \
+            -var="cursor_field=${cursor_field}" \
+            -var="row_discriminator_column=${row_discriminator_column}" \
+            -var="postgres_secret_id=${postgres_secret_id}" \
+            -var="bigquery_secret_id=${bigquery_secret_id}" \
+            -var="artifact_registry_repository=${ARTIFACT_REPO}" \
+            -var="cloud_run_job_name=${cloud_run_job_name}" \
+            -var="image_name=${IMAGE_NAME}" \
+            -var="image_tag=${IMAGE_TAG}"
+
+      - name: Summary
+        if: success()
+        run: |
+          echo "Deployed Cloud Run job image: ${GCP_REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/${ARTIFACT_REPO}/${IMAGE_NAME}:${IMAGE_TAG}" >> "$GITHUB_STEP_SUMMARY"
+          echo "Environment: ${DEPLOY_ENVIRONMENT}" >> "$GITHUB_STEP_SUMMARY"

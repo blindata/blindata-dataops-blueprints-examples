@@ -1,0 +1,27 @@
+# Ingest runner Python package metadata and dependencies (dlt, SQLAlchemy, jsonschema).
+# Purpose: define the installable `ingest-runner` app used by the Dockerfile and local dev.
+[project]
+name = "ingest-runner"
+version = "0.1.0"
+description = "DPDS-driven PostgreSQL → BigQuery ingest runner (blueprint scaffold)."
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+  "dlt[bigquery,postgres]>=1.4.0,<2",
+  "jsonschema>=4.20.0",
+  "sqlalchemy>=2.0.0",
+  "psycopg2-binary>=2.9.9",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.0.0",
+]
+
+[build-system]
+requires = ["setuptools>=68.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["src"]

@@ -1,0 +1,5 @@
+application/.venv
+**/__pycache__
+**/*.pyc
+.git
+.github

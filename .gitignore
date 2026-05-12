@@ -1,0 +1,11 @@
+.venv/
+**/.venv/
+*.egg-info/
+__pycache__/
+*.pyc
+.terraform/
+*.tfstate
+*.tfstate.*
+.terraform.lock.hcl
+*.tfvars
+!*.tfvars.example

@@ -1,0 +1,149 @@
+## Velocity → data-product-descriptor.json. Ports use promises.api.definition.schema with
+## databaseSchemaName + tables[] only; BigQuery project/table/partition/cluster come from
+## Terraform-set env vars on the job (INGEST_*). Orchestrator injects $output_table_properties_json.
+{
+  "dataProductDescriptor": "1.0.0",
+  "info": {
+    "name": "${dpName}",
+#if($dpFqn && $dpFqn != "")
+    "fullyQualifiedName": "${dpFqn}",
+#end
+#if($dpDisplayName && $dpDisplayName != "")
+    "displayName": "${dpDisplayName}",
+#else
+    "displayName": "${dpName}",
+#end
+#if($dpDescription && $dpDescription != "")
+    "description": "${dpDescription}",
+#else
+    "description": "",
+#end
+    "version": "${data_product_version}",
+    "domain": "${dpDomain}",
+    "owner": {"id": "${dpOwnerId}"},
+    "contactPoints": [
+      {
+        "name": "${dpOwnerName}",
+        "description": "",
+        "channel": "email",
+        "address": "${dpOwnerId}"
+      }
+    ]
+  },
+  "interfaceComponents": {
+    "inputPorts": [
+#foreach($schema in $input_schemas)
+#set($portIdx = $foreach.index)
+#set($portId = "${input_port_name_prefix}${portIdx}")
+      {
+        "fullyQualifiedName": "${dpFqn}:inputports:${portId}",
+        "entityType": "inputport",
+        "name": "${portId}",
+        "version": "${input_port_version}",
+        "displayName": "PostgreSQL ${schema} (${source_table_name})",
+        "description": "Read-only source; schema.system declaration under promises.api (datastoreapi).",
+        "dependsOn": "${dependsOn}",
+        "promises": {
+          "platform": "${postgres_database_name}",
+          "servicesType": "datastore-services",
+          "api": {
+            "name": "${portId}",
+            "version": "${input_port_version}",
+            "specification": "datastoreapi",
+            "specificationVersion": "1.0.0",
+            "definition": {
+              "schema": {
+                "databaseSchemaName": "${schema}",
+                "tables": [
+                  {
+                    "name": "${source_table_name}",
+                    "description": "",
+                    "specification": "json-schema",
+                    "specificationVersion": "1.0.0",
+                    "definition": {
+                      "name": "${source_table_name}",
+                      "description": "",
+                      "physicalType": "TABLE",
+                      "properties": {}
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }#if($foreach.hasNext),#end
+#end
+    ],
+    "outputPorts": [
+      {
+        "fullyQualifiedName": "${dpFqn}:outputports:${output_port_name}",
+        "entityType": "outputport",
+        "name": "${output_port_name}",
+        "version": "${output_port_version}",
+#if($output_port_display_name && $output_port_display_name != "")
+        "displayName": "${output_port_display_name}",
+#else
+        "displayName": "${output_port_name}",
+#end
+        "description": "BigQuery consolidated table; schema under promises.api (datastoreapi).",
+        "promises": {
+          "platform": "${bq_dataset_id}",
+          "servicesType": "datastore-services",
+          "api": {
+            "name": "${output_port_name}",
+            "version": "${output_port_version}",
+            "specification": "datastoreapi",
+            "specificationVersion": "1.0.0",
+            "definition": {
+              "schema": {
+                "databaseSchemaName": "${bq_dataset_id}",
+                "tables": [
+                  {
+                    "name": "${bq_table_id}",
+                    "description": "",
+                    "specification": "json-schema",
+                    "specificationVersion": "1.0.0",
+                    "definition": {
+                      "name": "${bq_table_id}",
+                      "description": "",
+                      "physicalType": "TABLE",
+                      "properties": $output_table_properties_json
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    ]
+  },
+  "internalComponents": {
+    "lifecycleInfo": {
+#foreach($env in $environments)
+      "${env}": [
+        {
+          "name": "Apply ingest stack (${env})",
+          "order": 1,
+          "service": {
+            "$href": "github-executor"
+          },
+          "template": {
+            "name": "${dpName}:${data_product_version}:${env}:Apply ingest stack",
+            "description": "Terraform apply for ${env} (Cloud Run job, BigQuery, staging bucket).",
+            "specification": "github",
+            "specificationVersion": "1.0.0",
+            "definition": {
+            },
+            "tags": []
+          },
+          "configurations": {
+            "params": {}
+          }
+        }
+      ]#if($foreach.hasNext),#end
+#end
+    }
+  }
+}

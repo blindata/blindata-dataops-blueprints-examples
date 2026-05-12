@@ -1,0 +1,429 @@
+spec: odm-blueprint-manifest
+specVersion: 1.0.0
+name: gcp-postgres-bigquery-ingest-dpds
+displayName: "GCP: PostgreSQL → BigQuery ingest (DPDS-driven)"
+version: 0.1.0
+description: >
+  Provisions BigQuery dataset, GCS staging, and a Cloud Run Job that runs a dlt-based
+  extractor driven by a DPDS-aligned data-product-descriptor.json (rendered from Velocity templates).
+  Transformation logic lives in transform_hook.py after instantiation.
+
+# ----------------------------------------------------------------------------
+# PARAMETERS
+# Explicitly declare all inputs required from the user to instantiate this Blueprint.
+#
+# Reserved keys (dp*) are declared explicitly and auto-filled from the Data Product information and
+# your profile; the instantiation UI groups them under "Auto-filled parameters". See README
+# "Reserved parameter keys". Other keys are user-supplied technical configuration (GCP, ports, etc.).
+# ----------------------------------------------------------------------------
+parameters:
+  - key: environments
+    type: array
+    required: true
+    default: [dev, prod]
+    ui:
+      group: General Configuration
+      label: Environments
+      description: >-
+        Deployment stage names for this data product (e.g. dev, prod). Used to generate lifecycle
+        slots in the descriptor template; edit the list to match your process.
+      formType: stringList
+
+  - key: dpDomain
+    type: string
+    required: true
+    ui:
+      group: Data Product Details
+      label: Data Domain
+      description: >-
+        Reserved key. The business domain this data product belongs to; auto-filled from the Data
+        Product information.
+      formType: text
+
+  - key: dpName
+    type: string
+    required: true
+    validation:
+      pattern: '^[a-z0-9-]+$'
+    ui:
+      group: Data Product Details
+      label: Data Product Name
+      description: >-
+        Reserved key. Technical name: lowercase alphanumeric characters and dashes only; auto-filled
+        from the Data Product information.
+      formType: text
+
+  - key: dpOwnerId
+    type: string
+    required: true
+    ui:
+      group: Ownership
+      label: Owner ID
+      description: >-
+        Reserved key. Owner identifier (user username); auto-filled from your profile.
+      formType: text
+
+  - key: dpOwnerName
+    type: string
+    required: true
+    ui:
+      group: Ownership
+      label: Owner Name
+      description: >-
+        Reserved key. Owner display name; auto-filled from your profile.
+      formType: text
+
+  - key: dpFqn
+    type: string
+    required: true
+    ui:
+      group: Data Product Details
+      label: Data Product FQN
+      description: >-
+        Reserved key. Unique identifier (URN) for the data product; auto-filled from the Data
+        Product information.
+      formType: text
+
+  - key: dpDisplayName
+    type: string
+    required: true
+    ui:
+      group: Data Product Details
+      label: Display Name
+      description: >-
+        Reserved key. Human-readable name; auto-filled from the Data Product information.
+      formType: text
+
+  - key: dpDescription
+    type: string
+    required: false
+    ui:
+      group: Data Product Details
+      label: Description
+      description: >-
+        Reserved key. High-level description; auto-filled from the Data Product information.
+      formType: text
+
+  - key: data_product_version
+    type: string
+    required: true
+    default: "1.0.0"
+    validation:
+      pattern: '^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$'
+    ui:
+      group: Data Product Details
+      label: Data product version
+      description: Semantic version of the data product (info.version).
+      formType: text
+
+  - key: gcp_project_id
+    type: string
+    required: true
+    validation:
+      pattern: '^[a-z][a-z0-9-]{4,28}[a-z0-9]$'
+    ui:
+      group: GCP / Environment
+      label: GCP project ID
+      formType: text
+
+  - key: gcp_region
+    type: string
+    required: true
+    validation:
+      allowedValues:
+        - europe-west1
+        - europe-west3
+        - europe-west4
+        - us-central1
+    ui:
+      group: GCP / Environment
+      label: Region
+      description: Region for BigQuery dataset, bucket, and Cloud Run execution.
+      formType: dropdown
+
+  - key: tf_state_bucket_address
+    type: string
+    required: true
+    validation:
+      pattern: '^[a-z0-9][a-z0-9_.-]{1,220}[a-z0-9]$'
+    ui:
+      group: GCP / Terraform
+      label: Remote state GCS bucket
+      description: Pre-provisioned bucket name for Terraform state (no protocol prefix).
+      formType: text
+
+  - key: tf_state_prefix
+    type: string
+    required: true
+    validation:
+      pattern: '^[a-zA-Z0-9/_-]+$'
+    ui:
+      group: GCP / Terraform
+      label: State prefix
+      description: Prefix path inside the state bucket for this product.
+      formType: text
+
+  - key: artifact_registry_repository
+    type: string
+    required: true
+    validation:
+      pattern: '^[a-z][a-z0-9-]{1,62}$'
+    ui:
+      group: GCP / Delivery
+      label: Artifact Registry repository id
+      formType: text
+
+  - key: gcs_staging_bucket
+    type: string
+    required: true
+    validation:
+      pattern: '^[a-z0-9][a-z0-9_.-]{1,220}[a-z0-9]$'
+    ui:
+      group: GCP / Delivery
+      label: GCS staging bucket name
+      description: Globally unique bucket for dlt staging (created by Terraform if absent).
+      formType: text
+
+  - key: cloud_run_job_name
+    type: string
+    required: true
+    validation:
+      pattern: '^[a-z][a-z0-9-]{0,62}$'
+    ui:
+      group: GCP / Delivery
+      label: Cloud Run Job name
+      description: DNS label for the ingest job (often dpName + environment).
+      formType: text
+
+  - key: wif_provider
+    type: string
+    required: true
+    ui:
+      group: GitHub Actions
+      label: Workload Identity Federation provider
+      description: Full resource name of the WIF provider used by google-github-actions/auth.
+      formType: text
+
+  - key: wif_service_account
+    type: string
+    required: true
+    ui:
+      group: GitHub Actions
+      label: WIF service account email
+      description: Google service account email federated for GitHub Actions deployments.
+      formType: text
+
+  - key: postgres_secret_id
+    type: string
+    required: true
+    ui:
+      group: Input port (PostgreSQL)
+      label: Secret Manager secret id (Postgres)
+      description: Secret containing read-only connection URI or JSON for dlt PostgreSQL source.
+      formType: text
+
+  - key: dependsOn
+    type: string
+    required: true
+    ui:
+      group: Input port (PostgreSQL)
+      label: dependsOn (Blindata system name)
+      description: >
+        Metadata only: emitted on the input port as a string "dependsOn": "<value>".
+        Not read by the ingest runner; for catalog / lineage (Blindata system name or URN).
+      formType: text
+
+  - key: postgres_database_name
+    type: string
+    required: true
+    validation:
+      pattern: '^[a-zA-Z_][a-zA-Z0-9_]{0,62}$'
+    ui:
+      group: Input port (PostgreSQL)
+      label: PostgreSQL database name
+      description: >
+        Logical database name for the source (promises.platform on each input port). Must match the
+        database in your Postgres connection secret; not read by the runner beyond the descriptor.
+      formType: text
+
+  - key: input_schemas
+    type: array
+    required: true
+    validation:
+      min: 1
+      max: 500
+    ui:
+      group: Input port (PostgreSQL)
+      label: PostgreSQL schemas (one input port each)
+      description: >
+        Each entry is a Postgres schema name; the rendered descriptor emits one datastoreapi input
+        port per entry (single databaseSchemaName per port). The connection URI still comes from the
+        secret; **postgres_database_name** must match that database and is used as **platform** on
+        each input port.
+      formType: stringList
+
+  - key: source_table_name
+    type: string
+    required: true
+    validation:
+      pattern: '^[a-zA-Z_][a-zA-Z0-9_]{0,62}$'
+    ui:
+      group: Input port (PostgreSQL)
+      label: Source table name
+      description: Same physical table name in each authorized schema.
+      formType: text
+
+  - key: cursor_field
+    type: string
+    required: false
+    default: ""
+    validation:
+      pattern: '^$|^[a-zA-Z_][a-zA-Z0-9_]{0,62}$'
+    ui:
+      group: Input port (PostgreSQL)
+      label: Cursor field (optional)
+      description: Column for incremental extraction; leave empty for full snapshots.
+      formType: text
+
+  - key: row_discriminator_column
+    type: string
+    required: true
+    validation:
+      pattern: '^[a-zA-Z_][a-zA-Z0-9_]{0,62}$'
+    default: source_schema
+    ui:
+      group: Input port (PostgreSQL)
+      label: Row discriminator column
+      description: Column name injected per row with the source schema name.
+      formType: text
+
+  - key: input_port_name_prefix
+    type: string
+    required: true
+    validation:
+      pattern: '^[a-z][a-z0-9]{1,12}$'
+    default: pgin
+    ui:
+      group: Input port (PostgreSQL)
+      label: Input port name prefix
+      description: >
+        Port machine names are `${prefix}${index}` (e.g. pgin0, pgin1) so each generated input port
+        stays unique and DNS-safe.
+      formType: text
+
+  - key: input_port_version
+    type: string
+    required: true
+    validation:
+      pattern: '^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$'
+    default: "1.0.0"
+    ui:
+      group: Input port (PostgreSQL)
+      label: Input port version
+      formType: text
+
+  - key: bq_dataset_id
+    type: string
+    required: true
+    validation:
+      pattern: '^[a-zA-Z_][a-zA-Z0-9_]{0,1023}$'
+    ui:
+      group: Output port (BigQuery)
+      label: BigQuery dataset ID
+      description: BigQuery dataset id for the load target; also used as **promises.platform** on the output port (database name in the contract).
+      formType: text
+
+  - key: bq_table_id
+    type: string
+    required: true
+    validation:
+      pattern: '^[a-zA-Z_][a-zA-Z0-9_]{0,1023}$'
+    ui:
+      group: Output port (BigQuery)
+      label: BigQuery table ID
+      formType: text
+
+  - key: bq_partition_field
+    type: string
+    required: true
+    validation:
+      pattern: '^[a-zA-Z_][a-zA-Z0-9_]{0,62}$'
+    ui:
+      group: Output port (BigQuery)
+      label: Partition column
+      formType: text
+
+  - key: bq_cluster_fields
+    type: array
+    required: true
+    validation:
+      min: 1
+      max: 4
+    ui:
+      group: Output port (BigQuery)
+      label: Clustering columns
+      formType: stringList
+
+  - key: output_table_properties
+    type: object
+    required: true
+    ui:
+      group: Output port (BigQuery)
+      label: Output table column map (datastoreapi)
+      description: >
+        Column definitions for the target table (promises.api.definition.schema.tables[0].definition.properties).
+        Serialized at instantiation as output_table_properties_json for Velocity.
+      formType: json
+
+  - key: bigquery_secret_id
+    type: string
+    required: true
+    ui:
+      group: Output port (BigQuery)
+      label: Secret Manager secret id (BigQuery SA)
+      description: Service account JSON for dlt BigQuery destination.
+      formType: text
+
+  - key: output_port_name
+    type: string
+    required: true
+    validation:
+      pattern: '^[a-z][a-zA-Z0-9]{1,62}$'
+    default: bigQueryConsolidated
+    ui:
+      group: Output port (BigQuery)
+      label: DPDS output port name
+      formType: text
+
+  - key: output_port_version
+    type: string
+    required: true
+    validation:
+      pattern: '^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$'
+    default: "1.0.0"
+    ui:
+      group: Output port (BigQuery)
+      label: Output port version
+      formType: text
+
+  - key: output_port_display_name
+    type: string
+    required: false
+    default: ""
+    ui:
+      group: Output port (BigQuery)
+      label: Output port display name
+      description: Falls back to output port name when empty.
+      formType: text
+
+protectedResources:
+  - path: application/pyproject.toml
+  - path: infrastructure/main.tf
+  - path: infrastructure/variables.tf
+  - path: infrastructure/outputs.tf
+  - path: infrastructure/iam.tf
+  - path: infrastructure/cloud_run.tf
+  - path: infrastructure/versions.tf
+
+instantiation:
+  strategy: monorepo

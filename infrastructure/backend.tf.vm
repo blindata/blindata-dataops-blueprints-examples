@@ -1,0 +1,9 @@
+## Velocity → backend.tf (optional). Embeds remote state bucket and prefix from blueprint
+## parameters so `terraform init` can target the correct GCS state without hardcoding.
+## Purpose: keep state location in sync with manifest tf_state_* values at instantiation.
+terraform {
+  backend "gcs" {
+    bucket = "${tf_state_bucket_address}"
+    prefix = "${tf_state_prefix}"
+  }
+}

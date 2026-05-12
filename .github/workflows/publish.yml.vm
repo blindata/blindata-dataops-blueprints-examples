@@ -1,0 +1,109 @@
+## Apache Velocity → publish.yml. Use #[[ ... ]]# so GitHub ${{ }} survives rendering.
+## Runs after a data product version is cut (typically a version tag). Validates the repo
+## contract, then builds and pushes the ingest runner image to Artifact Registry.
+## Operators then run the Deploy workflow for each target environment with the same tag.
+name: Publish container image
+
+#[[
+on:
+  push:
+    tags:
+      - "v*.*.*"
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: "Explicit tag for the image (e.g. v1.2.3). Required when not triggered by a tag push."
+        type: string
+        required: false
+        default: ""
+]]#
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  GCP_PROJECT_ID: ${gcp_project_id}
+  GCP_REGION: ${gcp_region}
+  ARTIFACT_REPO: ${artifact_registry_repository}
+  IMAGE_NAME: ingest-runner
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Resolve image tag
+        id: tag
+        run: |
+          #[[
+          set -euo pipefail
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            T="${{ github.event.inputs.image_tag }}"
+            if [[ -z "${T}" ]]; then
+              echo "::error::workflow_dispatch requires input image_tag (or push a v*.*.* tag instead)"
+              exit 1
+            fi
+          else
+            T="${{ github.ref_name }}"
+          fi
+          echo "IMAGE_TAG=${T}" >> "${GITHUB_ENV}"
+          echo "tag=${T}" >> "${GITHUB_OUTPUT}"
+          ]]#
+
+      - name: Validate descriptor JSON
+        run: |
+          test -f descriptor/data-product-descriptor.json
+          python -m json.tool descriptor/data-product-descriptor.json > /dev/null
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install application package
+        run: pip install -e ./application
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.8.5"
+
+      - name: Terraform fmt check
+        run: terraform fmt -check -recursive infrastructure
+
+      - name: Terraform validate
+        working-directory: infrastructure
+        run: |
+          terraform init -backend=false -input=false
+          terraform validate
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${wif_provider}
+          service_account: ${wif_service_account}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker ${GCP_REGION}-docker.pkg.dev --quiet
+
+      - name: Build and push image
+        run: |
+          IMAGE_URI="${GCP_REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/${ARTIFACT_REPO}/${IMAGE_NAME}"
+          docker build -t "${IMAGE_URI}:${IMAGE_TAG}" -f Dockerfile .
+          docker push "${IMAGE_URI}:${IMAGE_TAG}"
+          echo "IMAGE_URI=${IMAGE_URI}" >> "${GITHUB_ENV}"
+
+      - name: Summary
+        if: success()
+        run: |
+          {
+            echo "## Published image"
+            echo "Image: \`${IMAGE_URI}:${IMAGE_TAG}\`"
+            echo ""
+            echo "Next: run **Deploy infrastructure** for each configured lifecycle environment with **image_tag** = \`${IMAGE_TAG}\` (or send \`repository_dispatch\` type \`deploy-ingest\` with \`environment\` and \`image_tag\` in \`client_payload\`)."
+          } >> "${GITHUB_STEP_SUMMARY}"
