@@ -1,6 +1,10 @@
 ## Velocity → data-product-descriptor.json. Ports use promises.api.definition.schema with
 ## databaseSchemaName + tables[] only; BigQuery project/table/partition/cluster come from
-## Terraform-set env vars on the job (INGEST_*). Orchestrator injects $output_table_properties_json.
+## Terraform-set env vars on the job (INGEST_*). The output port column map
+## (tables[0].definition.properties) is intentionally left as a placeholder; the
+## instantiated data product owns it and must fill it in directly in the rendered
+## descriptor.
+#set($d = '$')
 {
   "dataProductDescriptor": "1.0.0",
   "info": {
@@ -108,7 +112,9 @@
                       "name": "${bq_table_id}",
                       "description": "",
                       "physicalType": "TABLE",
-                      "properties": $output_table_properties_json
+                      "properties": {
+                        "${d}comment": "Define datastoreapi columns here, e.g. { \"id\": { \"physicalType\": \"INT64\", \"isNullable\": false }, \"loaded_at\": { \"physicalType\": \"TIMESTAMP\", \"isNullable\": false } }. The runner builds a Draft 2020-12 JSON Schema from this object."
+                      }
                     }
                   }
                 ]

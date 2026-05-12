@@ -50,23 +50,26 @@ These names are the **Terraform** **`environment`** values and the **`internalCo
 
 ${h}${h} Next steps (implementation and curation)
 
-1. **Implement `application/transform_hook.py`**  
-   Implement **`transform_rows`** so every emitted row matches **`interfaceComponents.outputPorts[0]`** — **`promises.api.definition.schema.tables[0].definition.properties`** (the runner builds a JSON Schema from that object). For a quick connectivity check only, you may set **`TRANSFORM_HOOK_IDENTITY=1`** if rows already satisfy the contract (not for production mapping).
+1. **Define the output column contract**  
+   Edit **`descriptor/data-product-descriptor.json`** at **`interfaceComponents.outputPorts[0].promises.api.definition.schema.tables[0].definition.properties`**: replace the placeholder `$comment` with the **datastoreapi** column definitions for your target BigQuery table (for example `{ "id": { "physicalType": "INT64", "isNullable": false }, "loaded_at": { "physicalType": "TIMESTAMP", "isNullable": false } }`). The runner converts this object into a **Draft 2020-12** JSON Schema and validates every transformed row against it, so it is the contract your `transform_hook.py` must satisfy.
 
-2. **Verify secrets in Google Secret Manager**  
+2. **Implement `application/transform_hook.py`**  
+   Implement **`transform_rows`** so every emitted row matches the column map declared in step 1. For a quick connectivity check only, you may set **`TRANSFORM_HOOK_IDENTITY=1`** if rows already satisfy the contract (not for production mapping).
+
+3. **Verify secrets in Google Secret Manager**  
    Ensure the Postgres secret (URI or JSON host/user/password/database) and the BigQuery service account JSON match the ids referenced at deploy time. Confirm database access is **read-only** as intended.
 
-3. **Align descriptor with runtime**  
+4. **Align descriptor with runtime**  
    Open **`descriptor/data-product-descriptor.json`**: input ports should match the PostgreSQL schemas you configured at instantiation; **`internalComponents.lifecycleInfo`** keys must match the **Lifecycle environments** list above. Output port **dataset** / **table** ids must match Terraform **`bq_dataset_id`** / **`bq_table_id`**.
 
-4. **Publish then deploy**  
+5. **Publish then deploy**  
    Cut a version tag (for example **`v1.0.0`**) or run **Publish** with an explicit **`image_tag`**. Then run **Deploy** for each target environment with the **same** **`image_tag`**. Resolve any Terraform drift before relying on the job in production.
 
-5. **Schedule and observe**  
+6. **Schedule and observe**  
    Attach **Cloud Scheduler** or your orchestrator to the **Cloud Run Job**, and monitor logs, BigQuery row counts, and validation errors.
 
-6. **Contract changes**  
-   When the output column set changes, update the catalog / manifest that feeds **`output_table_properties`**, re-instantiate or re-render the descriptor as your process requires, bump **`output_port_version`** (and **`data_product_version`** if appropriate), publish a new image, and redeploy.
+7. **Contract changes**  
+   When the output column set changes, edit **`descriptor/data-product-descriptor.json`** at **`interfaceComponents.outputPorts[0].promises.api.definition.schema.tables[0].definition.properties`**, update **`transform_hook.py`** to match, bump **`output_port_version`** (and **`data_product_version`** if appropriate), publish a new image, and redeploy. The column contract lives in the descriptor and does not require re-instantiation.
 
 ${h}${h} Runtime environment (Cloud Run)
 

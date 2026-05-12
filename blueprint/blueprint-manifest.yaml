@@ -18,6 +18,7 @@ description: >
 # configuration (GCP, ports, etc.).
 # ----------------------------------------------------------------------------
 parameters:
+  # ----- General Configuration -------------------------------------------------
   - key: environments
     type: array
     required: true
@@ -30,9 +31,11 @@ parameters:
         slots in the descriptor template; edit the list to match your process.
       formType: stringList
 
+  # ----- Data Product Details (reserved, auto-filled) --------------------------
   - key: dpDomain
     type: string
     required: true
+    default: ""
     ui:
       group: Data Product Details
       label: Data Domain
@@ -52,26 +55,6 @@ parameters:
       description: >-
         Reserved key. Technical name: lowercase alphanumeric characters and dashes only; auto-filled
         from the Data Product information.
-      formType: text
-
-  - key: dpOwnerId
-    type: string
-    required: true
-    ui:
-      group: Ownership
-      label: Owner ID
-      description: >-
-        Reserved key. Owner identifier (user username); auto-filled from your profile.
-      formType: text
-
-  - key: dpOwnerName
-    type: string
-    required: true
-    ui:
-      group: Ownership
-      label: Owner Name
-      description: >-
-        Reserved key. Owner display name; auto-filled from your profile.
       formType: text
 
   - key: dpFqn
@@ -117,19 +100,46 @@ parameters:
       description: Semantic version of the data product (info.version).
       formType: text
 
+  # ----- Ownership (reserved, auto-filled) -------------------------------------
+  - key: dpOwnerId
+    type: string
+    required: true
+    default: ""
+    ui:
+      group: Ownership
+      label: Owner ID
+      description: >-
+        Reserved key. Owner identifier (user username); auto-filled from your profile.
+      formType: text
+
+  - key: dpOwnerName
+    type: string
+    required: true
+    default: ""
+    ui:
+      group: Ownership
+      label: Owner Name
+      description: >-
+        Reserved key. Owner display name; auto-filled from your profile.
+      formType: text
+
+  # ----- GCP / Environment -----------------------------------------------------
   - key: gcp_project_id
     type: string
     required: true
+    default: "my-gcp-project"
     validation:
       pattern: '^[a-z][a-z0-9-]{4,28}[a-z0-9]$'
     ui:
       group: GCP / Environment
       label: GCP project ID
+      description: Target Google Cloud project that hosts BigQuery, GCS staging, Cloud Run and Artifact Registry resources.
       formType: text
 
   - key: gcp_region
     type: string
     required: true
+    default: europe-west1
     validation:
       allowedValues:
         - europe-west1
@@ -142,9 +152,11 @@ parameters:
       description: Region for BigQuery dataset, bucket, and Cloud Run execution.
       formType: dropdown
 
+  # ----- GCP / Terraform -------------------------------------------------------
   - key: tf_state_bucket_address
     type: string
     required: true
+    default: "my-tf-state-bucket"
     validation:
       pattern: '^[a-z0-9][a-z0-9_.-]{1,220}[a-z0-9]$'
     ui:
@@ -156,6 +168,7 @@ parameters:
   - key: tf_state_prefix
     type: string
     required: true
+    default: "blueprints/postgres-bigquery-ingest"
     validation:
       pattern: '^[a-zA-Z0-9/_-]+$'
     ui:
@@ -164,19 +177,23 @@ parameters:
       description: Prefix path inside the state bucket for this product.
       formType: text
 
+  # ----- GCP / Delivery --------------------------------------------------------
   - key: artifact_registry_repository
     type: string
     required: true
+    default: "data-products"
     validation:
       pattern: '^[a-z][a-z0-9-]{1,62}$'
     ui:
       group: GCP / Delivery
       label: Artifact Registry repository id
+      description: Existing Artifact Registry Docker repository that stores the Cloud Run Job container image.
       formType: text
 
   - key: gcs_staging_bucket
     type: string
     required: true
+    default: "my-dlt-staging"
     validation:
       pattern: '^[a-z0-9][a-z0-9_.-]{1,220}[a-z0-9]$'
     ui:
@@ -188,6 +205,7 @@ parameters:
   - key: cloud_run_job_name
     type: string
     required: true
+    default: "postgres-bigquery-ingest"
     validation:
       pattern: '^[a-z][a-z0-9-]{0,62}$'
     ui:
@@ -196,9 +214,11 @@ parameters:
       description: DNS label for the ingest job (often dpName + environment).
       formType: text
 
+  # ----- GitHub Actions --------------------------------------------------------
   - key: wif_provider
     type: string
     required: true
+    default: "projects/PROJECT_NUMBER/locations/global/workloadIdentityPools/github/providers/github-actions"
     ui:
       group: GitHub Actions
       label: Workload Identity Federation provider
@@ -208,35 +228,29 @@ parameters:
   - key: wif_service_account
     type: string
     required: true
+    default: "deployer@my-gcp-project.iam.gserviceaccount.com"
     ui:
       group: GitHub Actions
       label: WIF service account email
       description: Google service account email federated for GitHub Actions deployments.
       formType: text
 
+  # ----- Input port (PostgreSQL) -----------------------------------------------
+  # Narrative: how to connect → what to read → row/port shape → catalog metadata
   - key: postgres_secret_id
     type: string
     required: true
+    default: "postgres-readonly-uri"
     ui:
       group: Input port (PostgreSQL)
       label: Secret Manager secret id (Postgres)
       description: Secret containing read-only connection URI or JSON for dlt PostgreSQL source.
       formType: text
 
-  - key: dependsOn
-    type: string
-    required: true
-    ui:
-      group: Input port (PostgreSQL)
-      label: dependsOn (Blindata system name)
-      description: >
-        Metadata only: emitted on the input port as a string "dependsOn": "<value>".
-        Not read by the ingest runner; for catalog / lineage (Blindata system name or URN).
-      formType: text
-
   - key: postgres_database_name
     type: string
     required: true
+    default: "postgres"
     validation:
       pattern: '^[a-zA-Z_][a-zA-Z0-9_]{0,62}$'
     ui:
@@ -250,6 +264,7 @@ parameters:
   - key: input_schemas
     type: array
     required: true
+    default: ["public"]
     validation:
       min: 1
       max: 500
@@ -266,12 +281,25 @@ parameters:
   - key: source_table_name
     type: string
     required: true
+    default: "events"
     validation:
       pattern: '^[a-zA-Z_][a-zA-Z0-9_]{0,62}$'
     ui:
       group: Input port (PostgreSQL)
       label: Source table name
       description: Same physical table name in each authorized schema.
+      formType: text
+
+  - key: row_discriminator_column
+    type: string
+    required: true
+    default: source_schema
+    validation:
+      pattern: '^[a-zA-Z_][a-zA-Z0-9_]{0,62}$'
+    ui:
+      group: Input port (PostgreSQL)
+      label: Row discriminator column
+      description: Column name injected per row with the source schema name.
       formType: text
 
   - key: cursor_field
@@ -286,24 +314,12 @@ parameters:
       description: Column for incremental extraction; leave empty for full snapshots.
       formType: text
 
-  - key: row_discriminator_column
-    type: string
-    required: true
-    validation:
-      pattern: '^[a-zA-Z_][a-zA-Z0-9_]{0,62}$'
-    default: source_schema
-    ui:
-      group: Input port (PostgreSQL)
-      label: Row discriminator column
-      description: Column name injected per row with the source schema name.
-      formType: text
-
   - key: input_port_name_prefix
     type: string
     required: true
+    default: pgin
     validation:
       pattern: '^[a-z][a-z0-9]{1,12}$'
-    default: pgin
     ui:
       group: Input port (PostgreSQL)
       label: Input port name prefix
@@ -315,17 +331,43 @@ parameters:
   - key: input_port_version
     type: string
     required: true
+    default: "1.0.0"
     validation:
       pattern: '^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$'
-    default: "1.0.0"
     ui:
       group: Input port (PostgreSQL)
       label: Input port version
+      description: Semantic version applied to every generated PostgreSQL input port in the descriptor.
+      formType: text
+
+  - key: dependsOn
+    type: string
+    required: true
+    default: ""
+    ui:
+      group: Input port (PostgreSQL)
+      label: dependsOn (Blindata system name)
+      description: >
+        Metadata only: emitted on the input port as a string "dependsOn": "<value>".
+        Not read by the ingest runner; for catalog / lineage (Blindata system name or URN).
+      formType: text
+
+  # ----- Output port (BigQuery) ------------------------------------------------
+  # Narrative: how to connect → target table → physical shape → port shape
+  - key: bigquery_secret_id
+    type: string
+    required: true
+    default: "bigquery-loader-sa-json"
+    ui:
+      group: Output port (BigQuery)
+      label: Secret Manager secret id (BigQuery SA)
+      description: Service account JSON for dlt BigQuery destination.
       formType: text
 
   - key: bq_dataset_id
     type: string
     required: true
+    default: "ingest_consolidated"
     validation:
       pattern: '^[a-zA-Z_][a-zA-Z0-9_]{0,1023}$'
     ui:
@@ -337,74 +379,50 @@ parameters:
   - key: bq_table_id
     type: string
     required: true
+    default: "events"
     validation:
       pattern: '^[a-zA-Z_][a-zA-Z0-9_]{0,1023}$'
     ui:
       group: Output port (BigQuery)
       label: BigQuery table ID
+      description: Name of the destination BigQuery table that dlt writes consolidated rows into.
       formType: text
 
   - key: bq_partition_field
     type: string
     required: true
+    default: "loaded_at"
     validation:
       pattern: '^[a-zA-Z_][a-zA-Z0-9_]{0,62}$'
     ui:
       group: Output port (BigQuery)
       label: Partition column
+      description: Column used to partition the BigQuery output table (typically a DATE or TIMESTAMP field).
       formType: text
 
   - key: bq_cluster_fields
     type: array
     required: true
+    default: ["source_schema"]
     validation:
       min: 1
       max: 4
     ui:
       group: Output port (BigQuery)
       label: Clustering columns
+      description: Ordered list (1–4) of columns used to cluster the BigQuery output table for query pruning.
       formType: stringList
-
-  - key: output_table_properties
-    type: object
-    required: true
-    ui:
-      group: Output port (BigQuery)
-      label: Output table column map (datastoreapi)
-      description: >
-        Column definitions for the target table (promises.api.definition.schema.tables[0].definition.properties).
-        Serialized at instantiation as output_table_properties_json for Velocity.
-      formType: json
-
-  - key: bigquery_secret_id
-    type: string
-    required: true
-    ui:
-      group: Output port (BigQuery)
-      label: Secret Manager secret id (BigQuery SA)
-      description: Service account JSON for dlt BigQuery destination.
-      formType: text
 
   - key: output_port_name
     type: string
     required: true
+    default: bigQueryConsolidated
     validation:
       pattern: '^[a-z][a-zA-Z0-9]{1,62}$'
-    default: bigQueryConsolidated
     ui:
       group: Output port (BigQuery)
       label: DPDS output port name
-      formType: text
-
-  - key: output_port_version
-    type: string
-    required: true
-    validation:
-      pattern: '^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$'
-    default: "1.0.0"
-    ui:
-      group: Output port (BigQuery)
-      label: Output port version
+      description: Machine name of the BigQuery output port emitted in the DPDS descriptor (lowerCamelCase, DNS-safe).
       formType: text
 
   - key: output_port_display_name
@@ -415,6 +433,18 @@ parameters:
       group: Output port (BigQuery)
       label: Output port display name
       description: Falls back to output port name when empty.
+      formType: text
+
+  - key: output_port_version
+    type: string
+    required: true
+    default: "1.0.0"
+    validation:
+      pattern: '^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$'
+    ui:
+      group: Output port (BigQuery)
+      label: Output port version
+      description: Semantic version recorded on the BigQuery output port in the descriptor.
       formType: text
 
 protectedResources:
